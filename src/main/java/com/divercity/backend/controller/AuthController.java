@@ -3,9 +3,9 @@ package com.divercity.backend.controller;
 import com.divercity.backend.model.User;
 import com.divercity.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Map;
@@ -13,13 +13,16 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
-
 public class AuthController {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    @Autowired
+    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     @PostMapping("/registro")
     public ResponseEntity<?> registrar(@RequestBody User user) {
@@ -27,12 +30,10 @@ public class AuthController {
             return ResponseEntity.badRequest().body("El email ya está registrado");
         }
 
-        user.setRol("USER"); // Por defecto es USER
-
-        String hashedPassword = passwordEncoder.encode(user.getPassword());
-        user.setPassword(hashedPassword);
-
+        user.setRol("USER");
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
         User nuevoUsuario = userRepository.save(user);
+
         return ResponseEntity.ok(nuevoUsuario);
     }
 
@@ -41,12 +42,17 @@ public class AuthController {
         String email = credentials.get("email");
         String password = credentials.get("password");
 
-        Optional<User> user = userRepository.findByEmail(email);
-
-        if (user.isPresent() && user.get().getPassword().equals(password)) {
-            return ResponseEntity.ok(user.get());
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuario no encontrado.");
         }
 
-        return ResponseEntity.status(401).body("Credenciales incorrectas");
+        User user = userOpt.get();
+
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Contraseña incorrecta.");
+        }
+
+        return ResponseEntity.ok(user);
     }
 }
