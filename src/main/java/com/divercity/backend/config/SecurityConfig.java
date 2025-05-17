@@ -13,10 +13,12 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // permitir registro y login
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/reservas/**").permitAll() // ✅ permite reservas sin login
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll() // ✅ permite preflight
                         .anyRequest().authenticated()
                 )
-                .httpBasic(httpBasic -> {}); // opcional: puedes quitar esto si no usarás autenticación básica
+                .httpBasic(httpBasic -> {}); // opcional
 
         return http.build();
     }
